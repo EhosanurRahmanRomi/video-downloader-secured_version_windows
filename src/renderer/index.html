@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>VideoAI Downloader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" role="img"><path d="M10 8h28a5 5 0 0 1 5 5v22a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V13a5 5 0 0 1 5-5Z"/><path class="brand-play" d="m20 17 12 7-12 7V17Z"/><path class="brand-arrow" d="M24 3v9m-4-4 4 4 4-4"/></svg>
+        </div>
+        <div>
+          <strong>VideoAI</strong>
+          <span>Downloader</span>
+        </div>
+      </div>
+
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-item active" type="button" data-view="new">
+          <span class="nav-icon" aria-hidden="true">＋</span>
+          <span>New download</span>
+        </button>
+        <button class="nav-item" type="button" data-view="queue">
+          <span class="nav-icon" aria-hidden="true">⇩</span>
+          <span>Download queue</span>
+          <span class="nav-count" id="queue-count">0</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-tip">
+        <span class="tip-icon" aria-hidden="true">⚡</span>
+        <div>
+          <strong>Two-layer acceleration</strong>
+          <p>Parallel videos and parallel fragments work independently.</p>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="settings-button" class="sidebar-action" type="button">
+          <span aria-hidden="true">⚙</span>
+          <span>Settings</span>
+        </button>
+        <div class="version" id="app-version">Version —</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="view-eyebrow">DOWNLOAD CENTER</p>
+          <h1 id="view-title">Save media. Skip the waiting.</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="engine-status" id="engine-status" role="status">
+            <span class="status-dot"></span>
+            <span id="engine-status-text">Checking engine…</span>
+          </div>
+          <button class="icon-button mobile-settings" id="mobile-settings-button" type="button" aria-label="Open settings">⚙</button>
+        </div>
+      </header>
+
+      <div id="tool-alert" class="alert error hidden" role="alert">
+        <strong>Download engine needs attention</strong>
+        <span id="tool-alert-text"></span>
+        <button type="button" id="tool-alert-check">Run check</button>
+      </div>
+
+      <section id="view-new" class="view active">
+        <div class="stats-grid" aria-label="Download statistics">
+          <article class="stat-card accent-blue">
+            <span class="stat-label">Active now</span>
+            <strong id="stat-active">0</strong>
+            <small id="stat-speed">0 B/s combined</small>
+          </article>
+          <article class="stat-card accent-violet">
+            <span class="stat-label">Waiting</span>
+            <strong id="stat-queued">0</strong>
+            <small>Ready to start automatically</small>
+          </article>
+          <article class="stat-card accent-green">
+            <span class="stat-label">Completed</span>
+            <strong id="stat-completed">0</strong>
+            <small>Saved in this history</small>
+          </article>
+          <article class="stat-card accent-amber">
+            <span class="stat-label">Acceleration</span>
+            <strong id="stat-fragments">8×</strong>
+            <small id="stat-acceleration">fragments per video</small>
+          </article>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="card create-card">
+            <div class="card-heading">
+              <div>
+                <span class="step-number">1</span>
+                <div>
+                  <h2>Add a video or playlist</h2>
+                  <p>Works with sites supported by yt-dlp.</p>
+                </div>
+              </div>
+            </div>
+
+            <form id="download-form" novalidate>
+              <label class="field-label" for="media-url">Media URL</label>
+              <div class="url-composer">
+                <textarea id="media-url" rows="2" maxlength="4096" spellcheck="false" placeholder="Paste a video or playlist link here…" required></textarea>
+                <div class="url-actions">
+                  <button class="button ghost compact" id="paste-button" type="button">Paste</button>
+                  <button class="button secondary compact" id="analyze-button" type="button">Analyze</button>
+                </div>
+              </div>
+              <p class="field-message hidden" id="url-error" role="alert"></p>
+
+              <div class="media-preview hidden" id="media-preview">
+                <div class="preview-thumb-wrap">
+                  <img id="preview-thumb" alt="Media thumbnail">
+                  <div class="preview-placeholder" id="preview-placeholder">▶</div>
+                </div>
+                <div class="preview-copy">
+                  <span class="preview-type" id="preview-type">VIDEO</span>
+                  <strong id="preview-title">Media title</strong>
+                  <p id="preview-meta">Source</p>
+                </div>
+                <button class="icon-button" id="clear-preview" type="button" aria-label="Clear analyzed media">×</button>
+              </div>
+
+              <div class="form-section">
+                <div class="section-heading">
+                  <span class="step-number">2</span>
+                  <div>
+                    <h3>Choose what to save</h3>
+                    <p>Smart defaults favor compatibility and quality.</p>
+                  </div>
+                </div>
+
+                <div class="field-grid two-columns">
+                  <div>
+                    <span class="field-label">Media type</span>
+                    <div class="segmented" role="radiogroup" aria-label="Media type">
+                      <label><input type="radio" name="media-kind" value="video" checked><span>Video</span></label>
+                      <label><input type="radio" name="media-kind" value="audio"><span>Audio only</span></label>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="field-label" for="quality-select">Maximum quality</label>
+                    <select id="quality-select">
+                      <option value="best">Best available</option>
+                      <option value="2160">4K · 2160p</option>
+                      <option value="1440">2K · 1440p</option>
+                      <option value="1080" selected>Full HD · 1080p</option>
+                      <option value="720">HD · 720p</option>
+                      <option value="480">SD · 480p</option>
+                      <option value="360">Low · 360p</option>
+                    </select>
+                  </div>
+                  <div id="video-container-field">
+                    <label class="field-label" for="video-container">Video container</label>
+                    <select id="video-container">
+                      <option value="mp4">MP4 · most compatible</option>
+                      <option value="mkv">MKV · most flexible</option>
+                      <option value="webm">WebM</option>
+                      <option value="auto">Automatic</option>
+                    </select>
+                  </div>
+                  <div id="audio-format-field" class="hidden">
+                    <label class="field-label" for="audio-format">Audio format</label>
+                    <select id="audio-format">
+                      <option value="mp3">MP3</option>
+                      <option value="m4a">M4A</option>
+                      <option value="opus">Opus</option>
+                      <option value="flac">FLAC</option>
+                      <option value="wav">WAV</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-section compact-section">
+                <div class="playlist-mode-row">
+                  <div class="playlist-mode-control">
+                    <span class="field-label">URL behavior</span>
+                    <div class="segmented three" role="radiogroup" aria-label="Playlist handling">
+                      <label><input type="radio" name="playlist-mode" value="auto" checked><span>Auto</span></label>
+                      <label><input type="radio" name="playlist-mode" value="single"><span>One video</span></label>
+                      <label><input type="radio" name="playlist-mode" value="playlist"><span>Playlist</span></label>
+                    </div>
+                  </div>
+                  <p class="playlist-mode-hint" id="playlist-mode-hint">Analyze a playlist to see every video and choose exactly what to download.</p>
+                </div>
+              </div>
+
+              <section class="playlist-browser hidden" id="playlist-browser" aria-labelledby="playlist-browser-title">
+                <div class="playlist-browser-heading">
+                  <div>
+                    <p class="eyebrow">PLAYLIST CONTENTS</p>
+                    <h3 id="playlist-browser-title">Choose videos</h3>
+                    <p>Every available item is selected by default.</p>
+                  </div>
+                  <span class="selection-badge" id="playlist-selection-badge">0 selected</span>
+                </div>
+
+                <div class="playlist-metrics" aria-label="Playlist summary">
+                  <div><strong id="playlist-total">0</strong><span>Total videos</span></div>
+                  <div><strong id="playlist-selected">0</strong><span>Selected</span></div>
+                  <div><strong id="playlist-duration">0:00</strong><span>Selected duration</span></div>
+                  <div><strong id="playlist-unavailable">0</strong><span>Unavailable</span></div>
+                </div>
+
+                <div class="playlist-toolbar">
+                  <label class="playlist-search" for="playlist-search">
+                    <span aria-hidden="true">⌕</span>
+                    <input id="playlist-search" type="text" maxlength="200" spellcheck="false" placeholder="Search title, creator, or number">
+                  </label>
+                  <div class="playlist-actions">
+                    <button class="button ghost compact" id="playlist-select-all" type="button">Select all</button>
+                    <button class="button ghost compact" id="playlist-invert" type="button">Invert</button>
+                    <button class="button ghost compact" id="playlist-clear" type="button">Clear</button>
+                  </div>
+                </div>
+
+                <div class="playlist-list" id="playlist-list" role="list" aria-label="Playlist videos"></div>
+                <div class="playlist-empty hidden" id="playlist-empty">No videos match this search.</div>
+                <div class="playlist-footer">
+                  <span id="playlist-showing">Showing 0 of 0</span>
+                  <button class="text-button hidden" id="playlist-load-more" type="button">Show more videos</button>
+                </div>
+                <p class="field-message hidden" id="playlist-selection-error" role="alert"></p>
+              </section>
+
+              <div class="form-section compact-section">
+                <label class="field-label" for="output-directory">Save to</label>
+                <div class="folder-picker">
+                  <input id="output-directory" type="text" readonly>
+                  <button class="button ghost" id="choose-folder-button" type="button">Browse…</button>
+                </div>
+              </div>
+
+              <details class="advanced-options">
+                <summary>Advanced options <span>Metadata, subtitles, login cookies</span></summary>
+                <div class="advanced-grid">
+                  <label class="check-row"><input id="embed-metadata" type="checkbox" checked><span><strong>Embed metadata</strong><small>Add title and creator information</small></span></label>
+                  <label class="check-row"><input id="embed-thumbnail" type="checkbox" checked><span><strong>Embed thumbnail</strong><small>Add cover art where supported</small></span></label>
+                  <label class="check-row"><input id="include-subtitles" type="checkbox"><span><strong>Download subtitles</strong><small>All available languages except live chat</small></span></label>
+                  <label class="check-row"><input id="auto-subtitles" type="checkbox"><span><strong>Include auto-captions</strong><small>Use generated captions when available</small></span></label>
+                  <label class="check-row"><input id="sponsorblock" type="checkbox"><span><strong>Remove sponsor segments</strong><small>Uses SponsorBlock data when available</small></span></label>
+                  <label class="check-row"><input id="overwrite-files" type="checkbox"><span><strong>Overwrite existing files</strong><small>Off keeps existing completed files safe</small></span></label>
+                  <label class="select-row" for="cookies-browser"><span><strong>Browser cookies</strong><small>For content you can access while signed in</small></span>
+                    <select id="cookies-browser">
+                      <option value="none">Do not use</option>
+                      <option value="chrome">Chrome</option>
+                      <option value="edge">Microsoft Edge</option>
+                      <option value="firefox">Firefox</option>
+                      <option value="brave">Brave</option>
+                      <option value="opera">Opera</option>
+                      <option value="vivaldi">Vivaldi</option>
+                    </select>
+                  </label>
+                </div>
+              </details>
+
+              <button class="button primary submit-button" id="add-download-button" type="submit">
+                <span class="button-icon" aria-hidden="true">⇩</span>
+                <span>Add to download queue</span>
+              </button>
+              <p class="legal-note">Only download content you own or have permission to save.</p>
+            </form>
+          </section>
+
+          <aside class="right-column">
+            <section class="card speed-card">
+              <div class="speed-graphic" aria-hidden="true">
+                <span class="speed-ring ring-one"></span>
+                <span class="speed-ring ring-two"></span>
+                <span class="speed-bolt">ϟ</span>
+              </div>
+              <p class="eyebrow">ACCELERATION READY</p>
+              <h2>Built to use your connection</h2>
+              <p>Segmented media uses parallel fragments. Direct files can use multi-connection aria2.</p>
+              <div class="speed-facts">
+                <div><span>Videos at once</span><strong id="fact-jobs">2</strong></div>
+                <div><span>Fragments / video</span><strong id="fact-fragments">8</strong></div>
+                <div><span>Direct-file connections</span><strong id="fact-aria">8</strong></div>
+              </div>
+              <button class="text-button" id="tune-speed-button" type="button">Tune performance →</button>
+            </section>
+
+            <section class="card recent-card">
+              <div class="card-title-row">
+                <div>
+                  <p class="eyebrow">RECENT ACTIVITY</p>
+                  <h2>Latest downloads</h2>
+                </div>
+                <button class="text-button" data-view-target="queue" type="button">View all</button>
+              </div>
+              <div id="recent-jobs" class="recent-list"></div>
+              <div id="recent-empty" class="empty-mini">
+                <span aria-hidden="true">⇩</span>
+                <p>Your newest jobs will appear here.</p>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-queue" class="view">
+        <section class="card queue-card">
+          <div class="queue-toolbar">
+            <div class="filter-tabs" role="tablist" aria-label="Filter downloads">
+              <button class="filter-tab active" type="button" data-filter="all">All <span id="filter-count-all">0</span></button>
+              <button class="filter-tab" type="button" data-filter="active">Active <span id="filter-count-active">0</span></button>
+              <button class="filter-tab" type="button" data-filter="completed">Completed <span id="filter-count-completed">0</span></button>
+              <button class="filter-tab" type="button" data-filter="failed">Needs attention <span id="filter-count-failed">0</span></button>
+            </div>
+            <button class="button ghost compact" id="clear-finished-button" type="button">Clear finished</button>
+          </div>
+          <div id="jobs-list" class="jobs-list"></div>
+          <div id="queue-empty" class="empty-state">
+            <div class="empty-icon" aria-hidden="true">⇩</div>
+            <h2>No downloads here yet</h2>
+            <p>Add a video or playlist and it will appear in this queue.</p>
+            <button class="button primary" data-view-target="new" type="button">Start a download</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="settings-dialog" class="modal settings-modal">
+    <form method="dialog" id="settings-form">
+      <header class="modal-header">
+        <div>
+          <p class="eyebrow">PREFERENCES</p>
+          <h2>Performance & reliability</h2>
+        </div>
+        <button class="icon-button" value="cancel" aria-label="Close settings">×</button>
+      </header>
+      <div class="modal-body">
+        <section class="settings-section">
+          <h3>Download acceleration</h3>
+          <p>More connections can improve speed, but some websites may throttle aggressive settings.</p>
+          <div class="range-field">
+            <label for="setting-max-jobs"><span>Simultaneous videos</span><output id="setting-max-jobs-value">2</output></label>
+            <input id="setting-max-jobs" type="range" min="1" max="6" step="1">
+          </div>
+          <div class="range-field">
+            <label for="setting-fragments"><span>Fragments per video</span><output id="setting-fragments-value">8</output></label>
+            <input id="setting-fragments" type="range" min="1" max="32" step="1">
+          </div>
+          <div class="range-field" id="aria-range-field">
+            <label for="setting-aria-connections"><span>Direct-file connections</span><output id="setting-aria-value">8</output></label>
+            <input id="setting-aria-connections" type="range" min="1" max="16" step="1">
+          </div>
+          <label class="check-row boxed"><input id="setting-use-aria" type="checkbox"><span><strong>Use aria2 for direct files</strong><small>Multiple connections for normal HTTP downloads</small></span></label>
+        </section>
+
+        <section class="settings-section">
+          <h3>Reliability</h3>
+          <div class="field-grid two-columns">
+            <div><label class="field-label" for="setting-retries">Retry attempts</label><input id="setting-retries" type="number" min="0" max="50"></div>
+            <div><label class="field-label" for="setting-timeout">Network timeout (seconds)</label><input id="setting-timeout" type="number" min="5" max="120"></div>
+          </div>
+          <label class="check-row boxed"><input id="setting-prevent-sleep" type="checkbox"><span><strong>Keep computer awake</strong><small>Only while downloads are active</small></span></label>
+        </section>
+
+        <section class="settings-section">
+          <div class="settings-heading-row">
+            <div><h3>Download components</h3><p id="component-summary">Checking bundled components…</p></div>
+            <span class="component-badge" id="component-badge">CHECKING</span>
+          </div>
+          <div class="component-actions">
+            <button class="button ghost" id="check-components-button" type="button">Run component check</button>
+            <button class="button ghost" id="update-ytdlp-button" type="button">Update yt-dlp</button>
+          </div>
+          <p class="component-versions" id="component-versions"></p>
+        </section>
+      </div>
+      <footer class="modal-footer">
+        <button class="button ghost" value="cancel">Cancel</button>
+        <button class="button primary" id="save-settings-button" value="default">Save settings</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog id="log-dialog" class="modal log-modal">
+    <form method="dialog">
+      <header class="modal-header">
+        <div><p class="eyebrow">JOB DETAILS</p><h2 id="log-title">Download log</h2></div>
+        <button class="icon-button" value="cancel" aria-label="Close log">×</button>
+      </header>
+      <div class="log-error hidden" id="log-error"></div>
+      <pre id="log-content" class="log-content"></pre>
+      <footer class="modal-footer"><button class="button primary" value="cancel">Close</button></footer>
+    </form>
+  </dialog>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="app.js"></script>
+</body>
+</html>
