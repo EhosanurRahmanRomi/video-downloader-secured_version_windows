@@ -1,0 +1,9 @@
+node_modules/
+.devtools/
+release/
+dist/
+*.log
+resources/toolchain/*.exe
+resources/toolchain/*.dll
+resources/toolchain/tools-manifest.json
+!resources/toolchain/.gitkeep
